@@ -6,7 +6,7 @@ import { buildReport } from './report.mjs';
 try {
   const config=validate(JSON.parse(await readFile(process.env.CONFIG??'config/sites.json','utf8'))),store=storeFromEnv();
   if(process.argv[2]==='collect') {
-    const result=await collect(config,store);console.log(JSON.stringify(result));if(result.failures)process.exitCode=1;
+    const result=await collect(config,store,{mode:process.env.MEASUREMENT_MODE??'pagespeed'});console.log(JSON.stringify(result));if(result.failures)process.exitCode=1;
   } else if(process.argv[2]==='report') {
     const dir=process.env.OUTPUT_DIR??`output/${process.argv.includes('--public')?'public':'private'}`;
     await buildReport(config,store,dir,{publicOnly:process.argv.includes('--public')});console.log('Report created');

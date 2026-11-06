@@ -1,5 +1,5 @@
 import { day, devices, categories, normalize } from './core.mjs';
-import { resolvePublic, screenshot } from './browser.mjs';
+import { resolvePublic, capturePage } from './browser.mjs';
 export async function pagespeed(site,device,fetcher=fetch) {
   await resolvePublic(new URL(site.url).hostname);
   const url=new URL('https://www.googleapis.com/pagespeedonline/v5/runPagespeed');
@@ -17,7 +17,8 @@ export async function pagespeed(site,device,fetcher=fetch) {
   }
 }
 const errorCode = e => /^(PSI_[A-Z0-9_]+|CAPTURE_[A-Z_]+|NETWORK_[A-Z_]+)$/.test(e.message) ? e.message : 'FAILED';
-export async function collect(config,store,{capture=screenshot,measure=pagespeed,now=new Date()}={}) {
+export async function collect(config,store,{capture=capturePage,measure=pagespeed,now=new Date(),mode='pagespeed'}={}) {
+  if(!['pagespeed','browser'].includes(mode))throw new Error('MEASUREMENT_MODE');
   const objects=await store.list();let bytes=objects.reduce((n,o)=>n+o.size,0);const keys=new Set(objects.map(o=>o.key));
   let failures=0,created=0,skipped=0;
   for(const site of config.sites.filter(s=>s.enabled))for(const device of devices){
@@ -25,9 +26,10 @@ export async function collect(config,store,{capture=screenshot,measure=pagespeed
     if(keys.has(recordKey)){skipped++;continue;}
     if(bytes+3100000>config.maxStorageBytes)throw new Error('STORAGE_BUDGET_STOP');
     const row={version:1,siteId:site.id,url:site.url,device,day:date,measuredAt:new Date().toISOString(),psi:{status:'error'},screenshot:{status:'error'}};
-    try{row.psi={status:'ok',...await measure(site,device)};}catch(e){row.psi={status:'error',code:errorCode(e)};failures++;}
+    if(mode==='browser')row.psi={status:'not_requested'};
+    else try{row.psi={status:'ok',source:'pagespeed',...await measure(site,device)};}catch(e){row.psi={status:'error',code:errorCode(e)};failures++;}
     try{
-      if(!keys.has(imageKey)){const image=await capture(site,device);if(image.length>3000000)throw new Error('CAPTURE_SIZE');await store.put(imageKey,image);bytes+=image.length;row.screenshot={status:'ok',key:imageKey,bytes:image.length};}
+      if(!keys.has(imageKey)){const captured=await capture(site,device);const image=Buffer.isBuffer(captured)?captured:captured.image;if(captured.local)row.local=captured.local;if(image.length>3000000)throw new Error('CAPTURE_SIZE');await store.put(imageKey,image);bytes+=image.length;row.screenshot={status:'ok',key:imageKey,bytes:image.length};}
       else row.screenshot={status:'ok',key:imageKey,bytes:objects.find(o=>o.key===imageKey).size};
     }catch(e){row.screenshot={status:'error',code:errorCode(e)};failures++;}
     const body=Buffer.from(JSON.stringify(row));await store.put(recordKey,body);bytes+=body.length;created++;
