@@ -1,0 +1,42 @@
+name: Daily monitor
+on:
+  schedule:
+    - cron: '23 20 * * *' # 05:23 JST; GitHub can delay or skip schedules
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: speedwatch-monitor
+  cancel-in-progress: false
+jobs:
+  collect:
+    if: vars.MONITOR_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      STORAGE: r2
+      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+      R2_BUCKET: ${{ secrets.R2_BUCKET }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      PAGESPEED_API_KEY: ${{ secrets.PAGESPEED_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npx playwright install --with-deps chromium
+      - run: npm run collect
+      - if: ${{ !cancelled() }}
+        run: npm run report -- --public
+      - if: ${{ !cancelled() }}
+        run: cat output/public/summary.md >> "$GITHUB_STEP_SUMMARY"
+      - if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: speedwatch-public-report
+          path: output/public/
+          retention-days: 7
+          if-no-files-found: error
