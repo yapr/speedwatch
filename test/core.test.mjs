@@ -67,3 +67,14 @@ test('weekly median averages the two central values for even sample counts',asyn
   const dir=await mkdtemp(join(tmpdir(),'speedwatch-median-'));await buildReport(config,store,dir,{now});
   const week=JSON.parse(await readFile(`${dir}/weekly.json`));assert.equal(week.groups[0].medianPerformance,85.5);
 });
+test('browser mode makes no PSI calls and reports local metrics without a score',async()=>{
+  const store=await local();let apiCalls=0;
+  const localResult={status:'ok',source:'browser-local',profile:'unthrottled-allowlisted',lab:{lcp:123,fcp:100,cls:0,load:456,tbt:null}};
+  await collect(config,store,{now,mode:'browser',measure:async()=>{apiCalls++;throw new Error('unexpected API');},capture:async()=>({image:Buffer.from('image'),local:localResult})});
+  assert.equal(apiCalls,0);
+  const dir=await mkdtemp(join(tmpdir(),'speedwatch-local-'));
+  const report=await buildReport(config,store,dir,{now,publicOnly:true});
+  assert.equal(report.groups[0].latest.psi.status,'not_requested');assert.equal(report.groups[0].latest.psi.scores,undefined);
+  assert.equal(report.groups[0].latest.local.lab.lcp,123);
+  const weekly=JSON.parse(await readFile(`${dir}/weekly.json`));assert.equal(weekly.groups[0].medianPerformance,null);assert.equal(weekly.groups[0].localMedianLcp,123);
+});

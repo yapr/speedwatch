@@ -48,7 +48,7 @@ export async function requestResource(url, hosts, {resolve=resolvePublic, get=ht
     });
   } finally { budget.release(); }
 }
-export async function screenshot(site, device) {
+export async function capturePage(site, device) {
   const budget = new CaptureBudget();
   const browser = await chromium.launch();
   try {
@@ -64,18 +64,37 @@ export async function screenshot(site, device) {
       } catch { await route.abort().catch(()=>{}); }
     });
     const page=await context.newPage(); page.setDefaultTimeout(15000);
+    await page.addInitScript(()=>{
+      const data=window.__speedwatch={lcp:null,cls:null};
+      try {new PerformanceObserver(list=>{for(const entry of list.getEntries())data.lcp=entry.startTime;}).observe({type:'largest-contentful-paint',buffered:true});}catch{}
+      try {
+        data.cls=0;let start=0,last=0,session=0;
+        new PerformanceObserver(list=>{for(const entry of list.getEntries()){
+          if(entry.hadRecentInput)continue;
+          if(entry.startTime-last>1000||entry.startTime-start>5000){start=entry.startTime;session=0;}
+          session+=entry.value;last=entry.startTime;data.cls=Math.max(data.cls,session);
+        }}).observe({type:'layout-shift',buffered:true});
+      }catch{}
+    });
     const response=await page.goto(site.url,{waitUntil:'load',timeout:45000});
     if (!response || response.status()>=400) throw new Error('CAPTURE_HTTP');
     await page.evaluate(()=>Promise.race([document.fonts.ready,new Promise(r=>setTimeout(r,5000))])); await page.waitForTimeout(1000);
+    const local=await page.evaluate(()=>({
+      lcp:window.__speedwatch.lcp,cls:window.__speedwatch.cls,
+      fcp:performance.getEntriesByName('first-contentful-paint')[0]?.startTime??null,
+      load:performance.getEntriesByType('navigation')[0]?.loadEventEnd??null,tbt:null
+    }));
     const height=await page.evaluate(()=>document.documentElement.scrollHeight);
     if(height>16000) throw new Error('CAPTURE_HEIGHT');
     budget.check();
     const image=await page.screenshot({type:'jpeg',quality:75,fullPage:true,animations:'disabled',timeout:15000});
     budget.check();
     if(image.length>3000000) throw new Error('CAPTURE_SIZE');
-    return image;
+    return {image,local:{status:'ok',source:'browser-local',profile:'unthrottled-allowlisted',lab:local}};
   } catch(error) {
     if(budget.signal.aborted)throw budget.signal.reason;
     throw error;
   } finally { budget.stop(new Error('NETWORK_CLOSED')); await browser.close(); }
 }
+
+export async function screenshot(site,device) { return (await capturePage(site,device)).image; }

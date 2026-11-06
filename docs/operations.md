@@ -41,3 +41,15 @@ Actions summaryと7日保持のartifactには**公開許可した数値・画像
 - 即時停止: `MONITOR_ENABLED=false` またはDaily monitor workflowをDisable。実行中のrunもCancelする。保存データは残る。
 
 メール/Slack/外部の死活通知は未設定です。GitHubのworkflow失敗通知と定期的な更新日時確認を使用し、独立したheartbeatは運用後の追加候補です。
+
+## 設定待ちの間のローカル運用
+
+`npm run monitor:local` はR2/APIキー不要。yapr.jp 1サイトだけを許可し、PSI呼び出しをしません。PC/スマホの撮影時にブラウザ内でLCP/FCP/CLS/loadを観測します。無制限通信・実利用者データではなく、許可ホスト制限付きのローカルラボ観測です。測定プロファイルは `unthrottled-allowlisted`。画像は同日再取得せず、過去日を復元しません。
+
+レポートは実行ごとの新規フォルダ。生成物合計90MB超で次の実行を停止するソフト上限を設けています（直前実行分の超過はあり得る）。元データは1GB上限。削除や間引きは自動実行しません。同時実行は `output/live/.lock` ディレクトリで拒否。強制終了でlockが残った場合は、実行プロセスがないことを確認してから、その空ディレクトリだけを除去してください。
+
+Mac上のローカル自動実行には端末とCodexアプリの稼働が必要で、スリープ/オフライン中の正時実行は保証されません。R2・GitHub Actionsを使うクラウド運用とは別です。新規クラウド料金は発生しませんが、端末の電力/回線と自動実行に伴うCodex利用枠を使用します。
+
+2026-11-06設定確認: このリポジトリのSecrets/Variables/workflowはいずれも空。実行プロセスにもR2/PageSpeed環境変数なし。組織Secretsの一覧取得はGitHubが403で拒否（admin:org/actions secrets権限不足）のため、組織設定の有無は未確認。権限変更は行っていません。
+
+ローカル自動実行の登録は、この委任スレッドではCodexが「Automations are only supported for local threads」と返したため未作成です。対応するMacのローカルスレッドから `npm run monitor:local` を毎日1回実行する自動化を設定してください。20:23 UTC（05:23 JST）を予定しています。設定成功・将来の定期起動はまだ確認できていません。

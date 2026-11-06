@@ -22,3 +22,10 @@ test('median handles empty, odd, even and zero-valued sets without mutation',()=
   const values=[100,0,80,20];assert.equal(median(values),50);assert.deepEqual(values,[100,0,80,20]);
   assert.equal(median([]),null);assert.equal(median([0]),0);assert.equal(median([30,10,20]),20);
 });
+test('local LCP is plotted but never connected to PageSpeed measurements',()=>{
+  const local={day:'2026-01-02',psi:{status:'not_requested'},local:{source:'browser-local',status:'ok',lab:{lcp:1200}}};
+  const rows=[row('2026-01-01'),local];
+  assert.equal(count(chart(rows,'lcp','2026-01-02'),'circle'),2);
+  assert.equal(count(chart(rows,'lcp','2026-01-02'),'line'),0);
+  assert.equal(count(chart(rows,'performance','2026-01-02'),'circle'),1);
+});

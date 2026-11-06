@@ -43,3 +43,13 @@ npm run demo
 ```
 
 CIテンプレートは `docs/workflow-templates/ci.yml` にあります。現在のGitHub認証にworkflow書き込み権限がないため、CIは未設定です。CIテスト自体はネットワーク計測・秘密情報不要。実ブラウザ/R2の結合確認は別途行います。通常PRでレビューし、マージ・定期運用開始・本番公開はそれぞれ承認後に実施します。
+
+## APIキーなしのローカル運用
+
+```sh
+npm run monitor:local
+```
+
+yapr.jpだけを対象に、PC/スマホのスクリーンショットとブラウザ観測値（LCP/FCP/CLS/load）を取得してレポートを生成します。R2・PageSpeed API・新規契約は不要。データは `data/live`、レポートは表示された `output/live/.../private/index.html`。公開候補版は同じ実行ディレクトリの `public/` です。外部公開はしません。
+
+これは通信・CPU制限なしのローカルブラウザ観測です。PageSpeedスコアやCrUXではありません。スコアは空欄、TBTは未計測として記録し、ソースを明示します。PageSpeedとローカル値の間をグラフの線でつなぎません。
