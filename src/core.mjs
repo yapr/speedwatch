@@ -38,3 +38,9 @@ export function degraded(rows) {
   return values.slice(3).every(v=>v <= baseline-10);
 }
 export const escapeHTML = s => String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+export function median(values) {
+  if(!values.length)return null;
+  const sorted=[...values].sort((a,b)=>a-b),middle=Math.floor(sorted.length/2);
+  return sorted.length%2?sorted[middle]:(sorted[middle-1]+sorted[middle])/2;
+}

@@ -60,3 +60,10 @@ test('weekly report counts missing observations and computes median',async()=>{
   const dir=await mkdtemp(join(tmpdir(),'speedwatch-weekly-'));await buildReport(config,store,dir,{now});
   const week=JSON.parse(await readFile(`${dir}/weekly.json`));assert.equal(week.groups[0].successful,1);assert.equal(week.groups[0].expected,7);assert.equal(week.groups[0].medianPerformance,90);
 });
+test('weekly median averages the two central values for even sample counts',async()=>{
+  const store=await local();
+  await collect(config,store,{now:new Date('2026-01-01T01:00:00Z'),measure:async()=>({...good,scores:{performance:80}}),capture:async()=>Buffer.from('image')});
+  await collect(config,store,{now:new Date('2026-01-02T01:00:00Z'),measure:async()=>({...good,scores:{performance:91}}),capture:async()=>Buffer.from('image')});
+  const dir=await mkdtemp(join(tmpdir(),'speedwatch-median-'));await buildReport(config,store,dir,{now});
+  const week=JSON.parse(await readFile(`${dir}/weekly.json`));assert.equal(week.groups[0].medianPerformance,85.5);
+});
